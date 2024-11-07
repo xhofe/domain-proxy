@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
-
-	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/proxy"
 )
 
 func main() {
@@ -16,13 +18,23 @@ func main() {
 	if schema == "" {
 		schema = "https"
 	}
-	app := fiber.New()
-	app.Use(proxy.Balancer(proxy.Config{
-		Servers: []string{schema + "://" + host},
-		ModifyRequest: func(c fiber.Ctx) error {
-			c.Request().Header.Set(fiber.HeaderHost, host)
-			return nil
-		},
-	}))
-	panic(app.Listen(":3000"))
+	u := schema + "://" + host
+	url, err := url.Parse(u)
+	if err != nil {
+		panic(err)
+	}
+	// initialize a reverse proxy and pass the actual backend server url here
+	proxy := httputil.NewSingleHostReverseProxy(url)
+
+	// handle all requests to your server using the proxy
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		r.Host = host
+		proxy.ServeHTTP(w, r)
+	})
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	fmt.Println("Starting server on :" + port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
