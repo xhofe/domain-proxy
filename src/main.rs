@@ -57,10 +57,14 @@ async fn proxy_handler(
         request_builder = request_builder.header(key, value);
     }
 
+    // Use the body
+    let stream = req.into_body().into_data_stream();
+    request_builder = request_builder.body(reqwest::Body::wrap_stream(stream));
+
     // Send the request using reqwest
     match request_builder.send().await {
         Ok(response) => {
-            let status = response.status();
+            let status: StatusCode = response.status();
             // println!("{} {} -> {}", req.method(), url, status);
             let headers = response.headers().clone();
             let body = response.bytes_stream();
