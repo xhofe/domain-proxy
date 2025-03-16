@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -18,6 +19,7 @@ func main() {
 	if schema == "" {
 		schema = "https"
 	}
+	forwardIP := os.Getenv("FORWARD_IP") == "true"
 	u := schema + "://" + host
 	url, err := url.Parse(u)
 	if err != nil {
@@ -29,6 +31,11 @@ func main() {
 	// handle all requests to your server using the proxy
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		r.Host = host
+		if forwardIP {
+			ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+			r.Header.Add("X-Real-IP", ip)
+			r.Header.Add("X-Forwarded-For", ip)
+		}
 		proxy.ServeHTTP(w, r)
 	})
 	port := os.Getenv("PORT")
